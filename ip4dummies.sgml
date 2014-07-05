@@ -1,0 +1,843 @@
+<!doctype linuxdoc system>
+
+<article>
+
+<title>
+IP for dummies
+</title>
+
+<author>
+Carlo Contavalli -- Copyright &copy; 2000-2002
+</author>
+
+<date>
+$Revision: 1.4 $ -- $Date: 2002/07/22 19:55:30 $
+</date>
+
+<abstract>
+Nel kernel 2.2 sono state aggiunte diverse funzionalità che non
+erano presenti nei kernel precedenti. Queste nuove funzionalità hanno
+reso ``incompleti'' comandi classici come ifconfig e route. Sono
+stati quindi introdotti dei nuovi comandi che a lungo andare 
+rimpiazzeranno quelli standard. Questo breve documento si propone come scopo quello
+di introdurre l&apos;utente all&apos;utilizzo basilare del comando ip, uno
+di questi nuovi comandi. Nelle pagine a seguire, utilizzerò spesso
+i termini ``interfaccia'' e ``scheda di rete'' come sinonimi, anche se
+in realtà i due termini spesso non sono interscambiabili. Utilizzerò
+frequentemente anche la parola ``pacchettino'', riferendomi in maniera
+un pochino più amichevole ai ``pacchetti'' ip o di qualsiasi altro
+tipo che scorrazzano per le nostre reti. Questo articolo ripercorrerà
+le operazioni che debbono essere svolte sotto un qualsiasi sistema
+linux per configurare una scheda di rete utilizzando solamente il
+comando ip. 
+</abstract>
+
+<toc>
+
+<sect>Copyright e note legali...<p>
+Questo documento è Copyright &copy; Carlo Contavalli 2000-2002.<p>
+Il lettore si assume tutte le responsabilità per danni, diretti o 
+indiretti, che possono essere causati dall'utilizzo delle informazioni fornite da questo 
+documento. L'autore non potrà pertanto essere considerato responsabile in 
+alcun caso e non si assume alcuna responsabilità sulla correttezza delle
+informazioni fornite.<p>
+Questo documento o alcune parti di esso possono essere liberamente
+riprodotte senza dover pagare alcun contributo all'autore, a patto
+che vengano rispettate le seguenti condizioni:
+<enum>
+  <item>Che venga mantenuta intatta l'indicazione del copyright
+	e che venga mantenuto per intero il testo contenuto in questa
+        sezione, sia nel caso in cui questo documento venga riprodotto solo parzialmente
+	sia nel caso in cui venga riprodotto integralmente.
+  <item>Qualsiasi traduzione di questo documento in altre lingue venga approvato per 
+	iscritto dall'autore.
+  <item>Nel caso in cui riproduciate solo parte di questo documento, che vengano fornite 
+ 	tutte le informazioni necessarie per poterne reperire una copia completa.
+</enum>
+Eccezioni a queste regole potranno essere autorizzate dall'autore per iscritto. Tutto 
+il codice eventualmente contenuto in questo documento è da considerare protetto dai termini
+indicati nella GNU General Public License.<p>
+
+<sect>Prima di cominciare<p>
+Questo documento &egrave; la seconda versione di un documento che scrissi
+parecchio tempo fa agli albori del kernel 2.4.<p>
+Le prime sezioni, in questo caso, sono praticamente rimaste invariate salvo
+qualche errore e imprecisioni che sono state corrette.<p>
+E' stato aggiunto anche qualche aggiornamento ed alcune sezioni su funzioni pi&ugrave;
+avanzate del comando ip di cui non avevo parlato in passato.<p>
+Spero che questo documento possa essere di qualche utilità e sarei felice di
+ricevere commenti, correzioni o qualsivoglia feedback vogliate mandare al mio
+indirizzo di posta elettronica <htmlurl url="mailto:ccontavalli@commedia.it" name="ccontavalli@commedia.it">... 
+<p>Chi di voi volesse scaricare una versione completa ed aggiornata di questo documento,
+potrebbe trovarla su <url url="http://www.commedia.it/ccontavalli/&num;docs-it">. 
+<p>
+In ogni caso, quando si parlerà di IP e di protocolli di rete, se non esplicitamente 
+indicato, mi riferirò alla versione 4 del protocollo IP (aka, IPv4).<p>
+
+<sect>Preparare il proprio sistema <p>
+Ok, prima di cominciare, vi conviene controllare la presenza
+ di tutto ciò di cui avrete bisogno: dovete avere una scheda di rete
+ riconosciuta dal kernel con i relativi moduli caricati, una versione
+ del kernel successiva alla 2.2.x (una 2.4.x è perfetta :-) compilata ed
+ installata con il supporto per le netlink socket nonché
+ il programma ``ip'' disponibile sicuramente presso il sito della vostra
+ distribuzione preferita (il pacchetto si chiama iproute in Debian)
+ oppure scaricabile dal sito <url url="ftp://ftp.inr.ac.ru/ip-routing/" name="ftp://ftp.inr.ac.ru/ip-routing/">
+ in formato sorgente. 
+
+<sect>Da ifconfig a ip<p>
+Queste prime sezioni tenteranno di introdurvi all'utilizzo basilare 
+del comando ip partendo da esempi basati sul pi&ugrave; conosciuto
+ifconfig. 
+
+<sect1>Installare una scheda di rete<p>
+Per verificare l&apos;effettiva presenza della scheda di rete avrete
+ sicuramente già provato il comando:
+
+<p>
+<tscreen><verb>
+    &num; ifconfig -a
+</verb></tscreen>
+<p>
+Questo, seppure standard ed entrato a far parte dei comandi più
+ popolari per gli amministratori di rete, può essere sostituito da
+ un più complesso ma altrettanto efficace:
+
+<p>
+<tscreen><verb>
+    &num; ip link show
+</verb></tscreen>
+<p>
+oppure, più brevemente dal comando
+
+<p>
+<tscreen><verb>
+    &num; ip link
+</verb></tscreen>
+<p>
+che vi dovrebbe dare un output molto simile a questo:
+
+<p>
+<tscreen><verb>
+1: lo: &lt;LOOPBACK,PROMISC,UP&gt; mtu 3924 qdisc noqueue
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00:00
+2: eth0: &lt;BROADCAST,MULTICAST&gt; mtu 1500 qdisc noop qlen 100
+    link/ether 00:c0:df:ae:33:48 brd ff:ff:ff:ff:ff:ff
+3: sl0: &lt;POINTOPOINT,MULTICAST,NOARP,UP&gt; mtu 1500 qdisc pfifo_fast qlen 10
+    link/slip 
+</verb></tscreen>
+<p>
+Vediamo ora di analizzare questa schermata prendendo ad esempio
+ l&apos;interfaccia eth0. Prima di tutto, subito dopo il nome dell&apos;interfaccia
+ è indicato lo stato della stessa, racchiuso tra un &lt; ed un
+ &gt;, in questo caso BROADCAST e MULTICAST. Subito di seguito è
+ indicato l&apos;mtu della scheda (1500), ovvero la dimensione massima
+ in bytes di un pacchetto che può essere spedito utilizzando questa
+ interfaccia (dipende dallo standard utilizzato dalla scheda di rete -- 1500 
+ &egrave; un buon valore per le reti ethernet). 
+
+<p>
+La prima novit&agrave; appare invece con il parametro qdisc. qdisc significa
+ ``Queuing Discipline'', ed indica il sistema usato dal kernel per gestire
+ il queue di questa interfaccia (noop). 
+
+<p>
+Ma che cos&apos;è un queue? Un buon esempio di queue &egrave; quello che
+ normalmente viene chiamato ``coda di stampa''. Spesso delle risorse non possono
+ essere utilizzate contemporaneamente da più utenti (come le stampanti),
+ e devono essere quindi costruite delle ``code'' (queue in inglese): quando il dispositivo
+ è occupato, tutto ciò che deve essere stampato viene accumulato da
+ qualche parte in attesa che la risorsa si liberi, portandosi poi
+ alla pari con il lavoro. Con le stampanti però, capita in tutti gli uffici
+ che qualcuno monopolizzi la risorsa facendo attendere delle ore
+ agli altri colleghi. Bene, la ``queuing discipline'' decide come deve
+ essere gestito l&apos;uso della risorsa che non può essere condivisa.
+ In questo caso si tratta di una scheda di rete e più in generale
+ della banda. La disciplina di default è la disciplina pfifo_fast
+ che corrisponde al classico ``chi prima arriva meglio si accomoda'',
+ fifo infatti sta per ``First In First Out'', il primo che entra è
+ il primo che esce. Naturalmente è una disciplina molto poco democratica,
+ e sia il kernel 2.2.x che il kernel 2.4.x provvedono a fornire diverse
+ discipline a livello sperimentale che consentono di cambiare questo
+ comportamento (come l'sfq, il tbf, il red ...). Se la risorsa non si libera, 
+ vengono poi al massimo accumulati qlen (100) arretrati. Nel nostro caso, eth0 usa però la
+ disciplina ``noop'', che corrisponde a ``non fare un tubo'', o ``no operation''.
+ Questo perché se notate i flag dell&apos;interfaccia essa non risulta
+ UP (a differenza di sl0), il che significa che non è stata configurata
+ o che è stata disattivata (vedi più avanti). Se la vostra interfaccia
+ fosse invece già stata configurata a boot time, mostrerebbe probabilmente
+ un bell&apos;UP ed un qdisc uguale a pfifo_fast, e nell&apos;esempio seguente
+ mostrerebbe un indirizzo ip già assegnato.  
+
+<p>
+In questa schermata possiamo anche vedere l&apos;indirizzo hardware
+ della scheda di rete ed il suo indirizzo di broadcast (00:c0:df:ae:33:48
+ ed ff:ff:ff:ff:ff:ff).
+
+<p>
+Possiamo però notare, che, a differenza del comando ``ifconfig
+ -a'', non vengono date informazioni circa l&apos;indirizzo ip di queste
+ interfacce. Con il nuovo comando ip, la gestione ``hardware'' e quella
+ logica di ogni dispositivo di rete sono quasi completamente indipendenti.
+ Possiamo quindi visualizzare le informazioni relative alla gestione
+ logica delle interfacce utilizzando il comando:
+
+<p>
+<tscreen><verb>
+     &num; ip address show
+</verb></tscreen>
+<p>
+o più brevemente
+
+<p>
+<tscreen><verb>
+     &num; ip addr
+</verb></tscreen>
+<p>
+Notate anche che perché ip riconosca un comando è necessario
+ scrivere soltanto quanto basta ad ip perché il comando non possa
+ essere confuso con un altro, cosicché sono comandi validi ``ip add'',
+ ``ip a'' o riferendoci all&apos;esempio di prima ``ip l''.
+
+<p>
+L&apos;output del comando ``ip addr'' nel nostro esempio sarebbe:
+
+<p>
+<tscreen><verb>
+1: lo: &lt;LOOPBACK,PROMISC,UP&gt; mtu 3924 qdisc noqueue 
+   link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00 
+   inet 127.0.0.1/8 scope host lo 
+2: eth0: &lt;BROADCAST,MULTICAST&gt; mtu 1500 qdisc noop qlen 100 
+   link/ether 00:c0:df:ae:33:48 brd ff:ff:ff:ff:ff:ff 
+3: sl0: &lt;POINTOPOINT,MULTICAST,NOARP,UP&gt; mtu 1500 qdisc pfifo_fast qlen 10 
+   link/slip 
+   inet 192.168.0.1 peer 194.109.2.10/24 scope global sl0
+</verb></tscreen>
+<p>
+Vediamo qui le stesse informazioni di prima più l&apos;indirizzo ``inet''
+ (internet ipv4) dell&apos;interfaccia, seguito da un /8 per ``lo'' o /24
+ per ``sl0''. Il numero di seguito alla / indica quanti bit devono essere
+ guardati per decidere se un altro computer si trova sulla stessa
+ rete, ed è un modo più breve per indicare una ``network mask''. Ad
+ esempio, l&apos;indirizzo dell&apos;host 127.0.0.2, che può anche essere scritto
+ in binario come 01111111.00000000.00000000.00000010, si trova sulla
+ stessa rete di 127.0.0.1 in quanto i primi 8 bit dell&apos;host 127.0.0.2
+ sono uguali ai primi 8 bit dell&apos;host 127.0.0.1. Nel caso di sl0,
+ il /24 indica che le prime 3 cifre di un altro host devono essere
+ uguali a 194.109.2 perché questo si trovi sulla stessa rete. 
+
+<p>
+Possiamo però vedere, che eth0 non ha alcun indirizzo ip assegnato.
+ Questo principalmente per un motivo: nessuno si è ancora preso la
+ briga di configurarlo. Siamo quindi pronti per affrontare il prossimo
+ passo.
+
+<sect1>Gestione degli indirizzi ip
+<p>
+A questo punto siamo pronti per assegnare un indirizzo ip alla
+ nostra scheda di rete. Per fare questo, potremmo utilizzare il comando
+ ``ifconfig eth0 192.168.200.1'', oppure il più recente:
+
+<p>
+<tscreen><verb>
+&num; ip addr add 192.168.200.1 dev eth0
+</verb></tscreen>
+<p>
+Eseguiamo ancora una volta il comando ``ip addr'' per vedere il
+ risultato della precedente istruzione:
+
+<p>
+<tscreen><verb>
+( . . . )
+2: eth0: &lt;BROADCAST,MULTICAST&gt; mtu 1500 qdisc pfifo_fast 
+   qlen 100 link/ether 00:c0:df:ae:33:48 brd ff:ff:ff:ff:ff:ff 
+   inet 192.168.200.1/32 scope global eth0
+( . . . )
+</verb></tscreen>
+<p>
+Ecco che ad eth0 è stato assegnato l&apos;indirizzo 192.168.200.1/32.
+ Abbiamo però commesso un errore: quel /32 indica che gli indirizzi
+ ip dei pacchettini uscenti dalla scheda di rete devono avere tutti
+ e 32 i bit uguali a quelli del suo indirizzo (in pratica, da questa
+ scheda di rete devono uscire pacchettini con indirizzo 192.168.200.1
+ (!!)). E questo probabilmente non è quello che volevamo. Va quindi
+ indicata esplicitamente la network mask del dispositivo, che in questo
+ caso sarebbe 255.255.255.0, corrispondente a 11111111.11111111.11111111.00000000
+ quindi ad un /24. Siamo quindi costretti a correggere il nostro errore
+ dando un comando del tipo:
+
+<p>
+<tscreen><verb>
+&num; ip addr add 192.168.200.1/24 dev eth0
+</verb></tscreen>
+<p>
+Ancora, questo sarebbe l&apos;output di ``ip addr'':
+
+<p>
+<tscreen><verb>
+( . . . )
+2: eth0: &lt;BROADCAST,MULTICAST&gt; mtu 1500 qdisc pfifo_fast 
+   qlen 100 link/ether 00:c0:df:ae:33:48 brd ff:ff:ff:ff:ff:ff 
+   inet 192.168.200.1/32 scope global eth0
+   inet 192.168.200.1/24 scope global eth0
+( . . . )
+</verb></tscreen>
+<p>
+Anche qua compare però un errore. Utilizzando ``ifconfig'' era
+ possibile assegnare uno ed un solo indirizzo ip ad una scheda di
+ rete. Con ip questo non è più vero: ogni interfaccia può avere un
+ numero indeterminato di indirizzi ip. Basta semplicemente aggiungere
+ o togliere indirizzi ad una scheda di rete. ifconfig era in grado di
+ fare qualcosa di simile (i famosi alias), ma per lui era necessario 
+ creare dei dispositivi virtuali come ``eth0:0'' o ``eth0:1''.<p>
+ Per correggere l&apos;errore dobbiamo quindi eliminare l&apos;indirizzo 192.168.200.1/32,
+ e per fare questo possiamo utilizzare il comando: 
+
+<p>
+<tscreen><verb>
+&num; ip addr del 192.168.200.1/32 dev eth0
+</verb></tscreen>
+<p>
+Dopo questo comando, ``ip addr'' dovrebbe mostrare la configurazione
+ corretta. Qualcuno di voi avrà poi già provato a ``pingare'' qualche
+ altro computer della rete, con grande delusione, probabilmente. Questo
+ per due motivi: 
+
+<p>
+<itemize>
+ <item>
+non abbiamo ancora configurato le tabelle di routing
+ <item>
+non abbiamo detto al kernel di attivare l&apos;interfaccia, cioè di
+ metterla ``UP''
+</itemize>
+<p>
+Per poter configurare le tabelle di routing relative ad un&apos;interfaccia,
+ dobbiamo prima attivarla, dando il comando:
+
+<p>
+<tscreen><verb>
+&num; ip link set eth0 up
+</verb></tscreen>
+<p>
+Come già indicato prima, ``ip link'' si occupa di gestire le interfacce
+ di rete dal punto di vista fisico. Altre cose che può fare sono:
+ disattivare un dispositivo (ip link set eth0 down), disattivare o
+ attivare l&apos;uso dell&apos;address resolution protocol (ip link set eth0
+ arp off oppure on), cambiare il nome dell&apos;interfaccia (... eth0 name
+ nuovonome), cambiare l&apos;mtu dell&apos;interfaccia (... eth0 mtu 1300 per
+ esempio), cambiare l&apos;indirizzo hardware dell&apos;interfaccia o l&apos;indirizzo
+ hardware di broadcast (... eth0 address xx:xx:xx:xx:xx:xx oppure
+ ... eth0 broadcast xx:xx:xx:xx:xx:xx) o ancora disattivare o attivare
+ il multicast, l&apos;uso di indirizzi dinamici o cambiare la lunghezza
+ del queue. La maggior parte di queste cose vi conviene però toccarle
+ solo se veramente sapete cosa avete intenzione di fare e con l&apos;interfaccia
+ ``down''.
+
+<sect1>Configurare le tabelle di routing <p>
+A questo punto, l&apos;interfaccia è attiva e configurata. Bisogna
+ però verificare che il kernel sia in grado di decidere dove mandare
+ i pacchetti destinati alla rete a cui è collegata. Per fare questo,
+ bisogna verificare le tabelle di routing, il cui scopo è proprio
+ quello di associare l&apos;indirizzo di una rete ad una scheda di rete.
+ Potremmo quindi utilizzare il comando vecchio stile ``route''
+ oppure il comando:
+
+<p>
+<tscreen><verb>
+&num; ip route
+</verb></tscreen>
+<p>
+Che darebbe un output molto simile al seguente:
+
+<p>
+<tscreen><verb>
+194.109.2.0/24 dev sl0 proto kernel scope link src 192.168.0.1 
+192.168.200.0/24 dev eth0 proto kernel scope link src 192.168.200.1
+</verb></tscreen>
+<p>
+Dalla prima riga vediamo che possiamo raggiungere tutti i computer
+ i cui primi 24 bit di indirizzo sono uguali a 194.109.2.0 passando
+ attraverso sl0, interfaccia che corrisponde alla prima porta seriale.
+ Vediamo anche che l&apos;indirizzo sorgente di questi pacchettini sarebbe
+ 192.168.0.1. Questo, ad una prima analisi, potrebbe sembrare strano.
+ Com&apos;è possibile che pacchetti destinati alla rete 194.109.2.0/24
+ debbano uscire da sl0 con un indirizzo di provenienza uguale a 192.168.0.1
+ che fa parte di tutt&apos;altra rete? Questo è dovuto al fatto che sl0
+ utilizza una connessione ``punto a punto'' (point to point -- come
+ mostrato dal comando ip addr), ed è quindi un tipo un po&apos; particolare
+ di collegamento, che mette l&apos;interfaccia di rete in contatto con un 
+ ``peer'' (compagno) che è poi effettivamente collegato alla rete 194.109.2.0. 
+ Per quanto
+ riguarda eth0, vediamo che esiste già una riga nella tabella di routing:
+ questo perché tutte le volte che attiviamo un&apos;interfaccia (la settiamo
+ come UP), automaticamente le reti raggiungibili tramite la stessa vengono 
+ aggiunte alle tabelle di routing.
+ 
+
+<p>
+Ipotizzando che nella nostra rete esista un gateway con indirizzo
+ internet 192.168.200.3 che ci colleghi al resto del mondo, dovremmo 
+ istruire il kernel dicendogli di mandare tutti i pacchettini
+ destinati alla grande rete al computer con questo indirizzo ip. Per
+ fare questo potremmo usare il comando ``route add -net default gw
+ 192.168.200.3'' oppure il comando:
+
+<p>
+<tscreen><verb>
+&num; ip route add default via 192.168.200.3
+</verb></tscreen>
+<p>
+Che dice al kernel qualcosa del tipo ``se non sai dove mandare
+ un pacchettino, mandalo a 192.168.200.3''. Se a questo punto volessimo
+ eliminare il route appena aggiunto, potremmo dare il comando:
+
+<p>
+<tscreen><verb>
+&num; ip route del default
+</verb></tscreen>
+<p>
+Oppure potremmo utilizzare il comando ``ip route replace'' per rimpiazzare
+ il route di default con un altro, come mostrato qua sotto:
+
+<p>
+<tscreen><verb>
+&num; ip route replace default dev eth1 via 192.168.300.3
+</verb></tscreen>
+<p>
+Il comando ``ip route'' consente di fare molte altre cose (ip route help n&eacute; 
+pu&ograve; essere testimone): per
+ esempio può gestire delle funzioni di NAT abbastanza basilari, oppure
+ bilanciare il traffico su due differenti gateway o ancora indicare
+ su che interfaccia il kernel manderebbe un pacchetto.
+
+
+
+<sect>Funzionalit&agrave; avanzate di ip<p>
+Nei paragrafi precedenti, ho sempre parlato di tabelle di routing
+ al plurale, e non si tratta di un errore: nei kernel precedenti,
+ si aveva a disposizione una sola tabella di routing, mentre nel kernel
+ 2.2.x e 2.4 si hanno a disposizione più tabelle di routing. Questo
+ consente al kernel di inviare determinate cose in giro per la rete
+ su percorsi diversi seguendo determinate regole. Di default sono
+ presenti 3 tabelle di routing: la tabella main, la tabella local e 
+ la tabella cache.<p>
+ La tabella main contiene la tabella principale,
+ quella che, per intenderci, viene modificata inconsciamente da route
+ e che viene modificata in caso non venga indicata esplicitamente un'altra 
+ tabella. La tabella cache tiene una cache (come il nome lascia intuire)
+ dei route utilizzati di recente mentre la tabella local
+ contiene tutti gli indirizzi locali (normalmente gli indirizzi di 
+ tutte le interfacce, quelli di broadcast e quelli di multicast). Per 
+ vedere il contenuto di una tabella specifica,
+ è necessario dare il comando ``ip route show table nometabella''.<p>
+ Per vedere il contenuto di tutte le tabelle, potete utilizzare come
+ ``nometabella'' la parola ``all'', che vi dovrebbe dare un output 
+ simile a: 
+<tscreen><verb>
+192.168.200.0/24 dev eth0  proto kernel  scope link  src 192.168.200.1 
+127.0.0.0/8 dev lo  scope link 
+default via 192.168.200.3 dev eth0 
+broadcast 127.255.255.255 dev lo  table local  proto kernel  scope link  src 127.0.0.1 
+broadcast 192.168.200.255 dev eth0  table local  proto kernel  scope link  src 192.168.200.1 
+local 192.168.200.1 dev eth0  table local  proto kernel  scope host  src 192.168.200.1 
+broadcast 192.168.200.0 dev eth0  table local  proto kernel  scope link  src 192.168.200.1 
+broadcast 127.0.0.0 dev lo  table local  proto kernel  scope link  src 127.0.0.1 
+local 127.0.0.1 dev lo  table local  proto kernel  scope host  src 127.0.0.1 
+local 127.0.0.0/8 dev lo  table local  proto kernel  scope host  src 127.0.0.1 
+</verb></tscreen>
+In questa schermata manca il collegamento seriale (nel frattempo &egrave; stato
+disattivato) e mancano le righe (entry) sugli indirizzi di multicast.<p>
+Ancora una volta, per&ograve;, iniziamo ad analizzare la prima riga.
+In questa riga vediamo che possiamo raggiungere la rete 192.168.0.0/24 attraverso
+l'interfaccia eth0, vediamo che il protocollo utilizzato per gestire questo
+indirizzo &egrave; quello del kernel, vediamo che lo scope &egrave; impostato
+a link e infine vediamo che l'indirizzo ip sorgente da usare &egrave; 192.168.0.1.<p>
+Per quanto riguarda il protocollo, questo indica come &egrave; stato inserito il
+route. Nel nostro caso, ``kernel'' indica che il route &egrave; stato automaticamente 
+inserito quando abbiamo attivato l'interfaccia (con ip link set eth0 up). Altri
+possibili valori sono ``static'', ad indicare che un amministratore ha voluto inserire
+manualmente il valore e che non deve essere automaticamente modificato, ``boot'' che &egrave; stato 
+inserito sempre dal <it/kernel/ utilizzando protocolli 
+come il dhcp od il bootp, ``redirect'' che &egrave; stato inserito per via di un 
+messaggio ICMP che ci indicava un percorso migliore per raggiungere una determinata
+destinazione. Il parametro ``scope'' &egrave; invece normalmente impostato a ``link'' 
+per tutti gli host direttamente raggiungibili (che non devono passare per un gateway) 
+e quindi per gli indirizzi di broadcast, mentre ``host'' &egrave; usato per tutti gli 
+altri indirizzi nella tabella di local (notate che 127.0.0.0/8 in questo caso
+non &egrave; considerato un indirizzo di broadcast).<p>
+Infine, il parametro src indica quale indirizzo ip deve essere utilizzato per mandare
+pacchettini agli altri computer connessi alla rete indicata. Tutti 
+questi parametri possono essere modificati manualmente, sempre utilizzando il comando
+ip route.<p>
+Per esempio, &egrave; possibile aggiungere un route statico dando un comando
+simile a:
+<tscreen><verb>
+  &num; ip route add 172.163.54.12 via 192.168.200.3 proto static
+</verb></tscreen>
+Notate inoltre che in alcune righe viene mostrato il parametro ``table''. Questo
+&egrave; seguito dal nome della tabella in cui si trova il route. Quando per&ograve;
+il nome della tabella viene omesso, come nelle prime tre righe, il route deve
+essere considerato parte della tabella ``main'', quella cio&egrave; di default.<p>
+Prima di andare oltre, &egrave; necessario aggiungere qualche piccola informazione
+su come il kernel fa ad individuare il route ``corretto''. Beh, prima di tutto
+cerca tutte le righe che corrispondono con la destinazione che si sta tentando
+di raggiungere (ad esempio, potrebbe scegliere due route come 192.168.0.0/24 e 
+192.168.0.0/16). A questo punto, se uno di quelli scelti &egrave; pi&ugrave; lungo
+(verifica un numero maggiore di bits) degli altri, allora viene utilizzato. Se invece
+uno o pi&ugrave; route della stessa lunghezza rimangono, viene scelto quello
+con priorit&agrave; maggiore o in assenza di priorit&agrave; il 
+primo che &egrave; stato inserito.<p>
+Vediamo per&ograve; ora di fare un esempio. Immaginiamo quindi di avere due 
+interfacce collegate ad una stessa rete. Beh, essendo collegate ad una
+stessa rete, avranno due indirizzi molto simili, ad esempio 192.168.200.1 
+ed 192.168.200.2, ed avranno due route molto simili indicati nella tabella
+di routing, per esempio:
+<tscreen><verb>
+192.168.200.0/24 dev inf0  proto kernel  scope link  src 192.168.200.1 
+192.168.200.0/24 dev inf1  proto kernel  scope link  src 192.168.200.2
+</verb></tscreen>
+dove per ``inf'' &egrave; intesa una interfaccia di rete qualsiasi. In questo
+caso il kernel sceglierebbe probabilmente il primo route, pur non avendo
+alcun valido motivo per non utilizzare il secondo. Se invece inf0 fosse molto
+pi&ugrave; lenta della seconda interfaccia, si potrebbe dire al kernel di utilizzare
+sempre inf1 (potrebbe essere il caso, per esempio, di un collegamento
+di backup o di qualcosa di simile), con qualcosa del tipo:
+<tscreen><verb>
+ip route flush dev inf0
+ip route flush dev inf1
+
+ip route add 192.168.200.0/24 dev inf0 preference 10
+ip route add 192.168.200.0/24 dev inf1 preference 1 
+</verb></tscreen>
+In questo caso, quindi, verrebbe sempre scelto il route su inf1, quello cio&egrave;
+con ``preference'' (o metric) minore.<p>
+E' possibile fare anche bilanciamento del carico su pi&ugrave; connessioni, ma fino
+a qualche versione del kernel fa, utilizzando il sistema di bilanciamento
+standard, non era possibile utilizzare molte funzioni di NAT (Network Address
+Translation), e vi conviene quindi cercare documentazione specifica in proposito
+(magari guardando anche ci&ograve; che riguarda il ``bonding'').<p>
+
+<sect1>Tabelle di routing multiple<p>
+Spesso per&ograve; si presenta la necessit&agrave; di inviare traffico differente
+attraverso interfacce differenti, oppure di avere degli stessi indirizzi ip su
+diverse interfacce di rete.<p> 
+Nei kernel precedenti al 2.2 e utilizzando comandi diversi da ip era quasi impossibile
+utilizzare un firewall linux in queste situazioni, situazioni nelle quali attualmente
+&egrave; possibile utilizzare pi&ugrave; tabelle di routing. Ma vediamo come...<p>
+Immaginiamo quindi di avere, per esempio, due connessioni ad internet, una attraverso
+un provider ``serio'', per la nostra sala macchine, dove la banda &egrave; garantita
+e deve essere riservata per il traffico dei clienti, ed una connessione ADSL per il 
+nostro ufficio. <p>
+In questo caso, una soluzione (sebbene non la migliore) potrebbe essere quella di mantenere
+le due reti il pi&ugrave; possibile separate, introducendo un firewall con 4 interfacce:
+<enum>
+  <item>la prima collegata alla rete degli uffici
+  <item>la seconda collegata alla rete del provider ADSL
+  <item>la terza collegata alla rete della sala macchine
+  <item>la quarta collegata al provider serio
+</enum>
+In questo caso il vostro router linux dovrebbe instradare i pacchetti differentemente, a
+seconda che vengano dall'ufficcio o dalla sala macchine.<p>
+Per fare questo utilizzando il nuovo comando ip, &egrave; possibile creare due tabelle di
+routing distinte: una per la sala macchine e il provider serio, l'altra per l'ufficio e 
+per la linea adsl.<p>
+Iniziamo quindi dando un'occhiata in <file>/etc/iproute2</file> (o <file>/etc/iproute</file>
+a seconda della distribuzione che state usando). In questa directory vengono mantenuti
+tutta una serie di file utilizzati dal comando ip per convertire i numeri in parole.<p>
+Il kernel, infatti, memorizza tutte le informazioni in formato numerico che devono
+poi essere ritradotte da ip in qualche modo. Se date un'occhiata al file rt_protos, sempre
+in questa directory, vedrete le stesse stringhe di cui vi parlavo prima quando vi descrivevo
+il significato del campo proto. Allo stesso modo, nel file rt_scopes potrete vedere le 
+associazioni tra scope indicato in formato numerico e lo scope mostrato da ip, nel file
+rt_dsfield le associazioni utilizzate per la gestione dei servizi differenziati e in 
+rt_realms i realm utilizzati. Infine, nel file rt_tables, troverete le associazioni tra
+l'identificativo delle varie tabelle di routing ed il loro nome.<p>
+Aprite dunque questo file con il vostro editor preferito ed aggiungete una riga del tipo
+<tscreen><verb>
+252	smacchine
+</verb></tscreen>
+Dove 252 &egrave; semplicemente un numero non utilizzato e smacchine un nome arbitrario per la nostra
+tabella di routing. Notate anche che le righe precedeute da un ``&num;'' sono commenti, e che quindi
+nella maggior parte dei casi tutte le righe sono commentate. Questo principalmente per un motivo:
+il comando ip mantiene lui direttamente tutte le associazioni tra quelli che sono i numeri ed i
+nomi delle tabelle standard, per evitare confusione, ed ogni modifica nel file di tali righe verrebbe
+elegantemente ignorata.<p>
+In questo modo, abbiamo messo ip in grado di riconoscere una tabella chiamata ``smacchine''. Per aggiungere
+dei route a questa tabella, &egrave; sufficiente dare i soliti comandi con in pi&ugrave; l'indicazione
+della tabella in cui aggiungere il route. Immaginiamo ancora una volta che
+<enum>
+  <item>l'interfaccia di rete eth-off collegata agli uffici abbia come indirizzo 10.0.0.1 e che gli uffici
+	utilizzino come netmask 255.255.255.0.
+  <item>l'interfaccia di rete eth-adsl collegata al provider adsl abbia un indirizzo dinamico assegnato da un
+	server dhcp.
+  <item>l'interfaccia di rete eth-smac collegata alla sala macchine abbia come indirizzo 1.2.3.1 e che questa
+	rete utilizzi come netmask 255.255.255.240.
+  <item>l'interfaccia di rete eth-serio collegata al provider serio abbia come indirizzo 1.2.3.2 e che sia collegata
+	direttamente al router (tramite crossover) del provider con indirizzo 1.2.3.14.
+</enum>
+Ok, iniziamo a configurare la tabella ``smacchine''. Ipotizzando di aver gi&agrave; impostato
+correttamente gli indirizzi ip sulle varie schede di rete, ci troveremmo quindi ad una situazione
+simile (con ip addr show) alla seguente:
+<tscreen><verb>
+1: lo: &lt;LOOPBACK,UP&gt; mtu 16436 qdisc noqueue 
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 brd 127.255.255.255 scope host lo
+2: eth-off: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500 qdisc pfifo_fast qlen 100
+    link/ether 00:50:04:8e:a2:da brd ff:ff:ff:ff:ff:ff
+    inet 10.0.0.1/24 brd 10.255.255.255 scope global eth0
+3: eth-adsl: &lt;BROADCAST,MULTICAST&gt; mtu 1500 qdisc pfifo_fast qlen 100
+    link/ether 00:50:04:8e:a2:db brd ff:ff:ff:ff:ff:ff
+4: eth-smac: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500 qdisc pfifo_fast qlen 100
+    link/ether 00:50:04:8e:a2:dc brd ff:ff:ff:ff:ff:ff
+    inet 1.2.3.1/28 brd 1.2.3.15 scope global eth0
+5: eth-serio: &lt;BROADCAST,MULTICAST,UP&gt; mtu 1500 qdisc pfifo_fast qlen 100
+    link/ether 00:50:04:8e:a2:dd brd ff:ff:ff:ff:ff:ff
+    inet 1.2.3.14/32 brd 192.168.200.255 scope global eth0
+</verb></tscreen>
+Ma vediamo di analizzare la situazione prima di proseguire. Per quanto riguarda eth-off, 
+non credo che vi sia alcun problema: &egrave; configurata in una delle maniere pi&ugrave;
+standard possibili. eth-adsl, invece, non &egrave; stata attivata: questo principalmente
+perch&egrave; se ne occuper&agrave; pump (o dhcpcd -- sono entrambi dei client dhcp) entro poco. 
+eth-smac ha come indirizzo
+quello sopra indicato (1.2.3.1) e come netmask un /28. Questo perch&egrave; 255.255.255.240
+in formato binario si pu&ograve; scrivere come 11111111.11111111.11111111.11110000, cio&egrave;
+con 28 ``uno'' (si pu&ograve; anche calcolare in questo modo: 255 (il massimo) - 240 = 16 (ok, 15,
+ma arrotondiamolo alla potenza di 2 pi&ugrave; vicina), 16 si pu&ograve; esprimere utilizzando
+al pi&ugrave; 4 bit (4 = logaritmo base 2 di 16, 2^4 &egrave; proprio uguale a 16)). Ok, andando
+avanti, eth-serio ha come indirizzo ip 1.2.3.14/32. Teoricamente per&ograve;, 1.2.3.14 si dovrebbe
+trovare sulla rete collegata ad eth-smac. E' per questo che la netmask &egrave; stata specificata
+con un /32: ad indicare che nessun altro computer di tale rete &egrave; raggiungibile tramite questa
+interfaccia. Vediamo per&ograve; cosa ha fatto il kernel in automatico sulle nostre tabelle di routing:<p>
+
+<tscreen><verb>
+  &num; ip route show table main
+    127.0.0.0/8 dev lo  scope link 
+    10.0.0.0/24 dev eth-off proto kernel scope link src 10.0.0.1 
+    1.2.3.0/28 dev eth-smac proto kernel scope link src 1.2.3.1
+  &num; ip route show table smacchine
+  &num;
+</verb></tscreen>
+Ok, prima di tutto non &egrave; stata aggiunta alcuna entry per l'interfaccia eth-serio nella tabella
+main (quella di default): questo
+soprattutto perch&egrave; dal punto di vista del kernel eth-serio non &egrave; collegata ad alcuna 
+rete (ricordate il /32?).<p> 
+In secondo luogo, la tabella smacchine &egrave; completamente vuota. L'unico modo per aggiungere
+delle entry in tabelle diverse da quella di default &egrave; necessario indicarlo esplicitamente.<p>
+Ipotizzando quindi di riuscire a fare in modo che i nostri server utilizzino una tabella di routing
+diversa da quella dell'ufficio, dovranno essere presenti sicuramente le seguenti entry:
+<itemize>
+  <item> 1.2.3.0/28, per permettere al router di comunicare con i nostri server
+  <item> un entry per permettere al router di comunicare col gateway del provider serio, che, come
+	 ricorderete, si trova collegato ad un'altra rete
+  <item> un entry per permettere alla rete dei server di contattare direttamente l'ufficio (senza
+	 passare da internet)
+  <item> un entry di default per permettere al router di raggiungere il resto del mondo.
+</itemize>
+Vediamo quindi di aggiungere queste entry:
+<tscreen><verb>
+  &num; ip route add 1.2.3.0/28 dev eth-smac table smacchine
+  &num; ip route add 1.2.3.2 dev eth-serio table smacchine
+  &num; ip route add 10.0.0.0/24 dev eth-off table smacchine
+  &num; ip route add default via 1.2.3.2 dev eth-serio table smacchine
+</verb></tscreen>
+Le particolarit&agrave; iniziano qui dalla seconda riga: in caso il router dovesse contattare 
+il computer su 1.2.3.2 utilizzerebbe questa entry piuttosto che la prima in quanto &egrave; 
+quella che corrisponde per un numero maggiore di bit, ed essendo specificata esplicitamente
+la scheda di rete, tutto dovrebbe funzionare correttamente. Stessa cosa vale per la terza riga,
+dove lo stesso meccanismo &egrave; utilizzato per raggiungere il route di default.<p>
+Ci manca ancora un passo per&ograve; per arrivare ad una configurazione ``funzionante'': dire al 
+kernel in quali situazioni utilizzare questa tabella di routing.<p>
+Per fare questo, &egrave; necessario utilizzare il comando ``ip rule'' (regole ip). Nel nostro
+caso, basterebbe qualcosa del tipo
+<tscreen><verb>
+  &num; ip rule add from 1.2.3.0/28 lookup smacchine 
+  &num; ip rule add to 1.2.3.0/28 lookup smacchine
+</verb></tscreen>
+per dire al kernel di utilizzare la tabella smacchine per tutto ci&ograve; che riguarda la
+rete 1.2.3.0/28. Infine, dobbiamo assegnare un indirizzo ip all'interfaccia eth-adsl ed 
+un route di default per la tabella di default. Per fare questo, possiamo semplicemente
+utilizzare ``pump -i eth-adsl'' per richiedere tramite dhcp le informazioni mancanti. In questo
+caso abbiamo lasciato alla rete degli uffici e del provider adsl la tabella di default proprio perch&egrave;
+comandi come pump o dhcpcd non consentono di specificare quale tabella di routing devono
+andare a modificare, e non saremmo quindi stati in grado di far loro modificare la tabella
+smacchine.
+
+<sect1>Regole di ip<p>
+Ok, abbiamo gi&agrave; visto il comando ``ip rule add'' per aggiungere delle regole.
+Nel nostro caso, abbiamo aggiunto delle regole basate sull'indirizzo ip sorgente e destinazione
+dei pacchetti ip. <tt/ip rule/ consente di aggiungere delle regole basate anche:
+<itemize>
+  <item>sul <tt/tos/
+  <item>sul dispositivo di input (con <tt/dev/ o <tt/iif/)
+  <item>sul <tt/fwmark/
+</itemize>
+Come potete vedere, non &egrave; possibile fare dei match in base alla porta tcp o udp. Il problema
+&egrave; risolto tramite l'utilizzo di fwmark, che vi consente di riconoscere pacchetti marcati
+usando comandi come iptables o ipchains, che consentono di scrivere regole molto pi&ugrave; 
+selettive e su tutti i campi dei vari protocolli (vi conviene guardare la documentazione di iptables
+o ipchains per maggiori informazioni). <p>
+Per vedere invece le regole correntemente inserite, &egrave; sufficiente dare qualcosa di simile a
+``ip rule show'' per avere un output:
+<tscreen><verb>
+0:	from all lookup local 
+32764:	from all to 1.2.3.0/28 lookup smacchine 
+32765:	from 1.2.3.0/28 lookup smacchine 
+32766:	from all lookup main 
+32767:	from all lookup 253 
+</verb></tscreen>
+Ok, il primo numero a sinistra indica l'ordine in cui vengono controllate le regole (una regola con 
+un numero minore viene controllata per prima -- indica cio&egrave; la posizione della regola), 
+le prime parole seguenti indicano cosa deve essere verificato nel pacchetto (all corrisponde
+a 0.0.0.0/0)  mentre normalmente le ultime due parole indicano l'azione da completare. In tutte
+le regole sopra esposte, viene indicato di effettuare il lookup in particolari tabelle.<p>
+In generale, &egrave; possibile specificare come azione quella di:
+<itemize>
+  <item>effettuare il lookup in particolari tabelle con <tt/lookup/
+  <item>proibire il transito dei pacchetti (generando l'errore ICMP communication prohibited) con <tt/prohibit/
+  <item>rendere il percorso irraggiungibile (generando l'errore ICMP network unreachable) con <tt/unreachable/
+  <item>buttare via completamente il pacchetto con <tt/blackhole/ 
+  <item>effettuare una forma primitiva (utile per altri scopi rispetto quelli per cui &egrave; normalmente
+	utilizzato) di nat con <tt/nat/
+</itemize>
+Vediamo quindi un esempio utilizzando qualche regola un pochino pi&ugrave; avanzata
+<tscreen><verb>
+  &num; ip rule add from 10.0.0.11 unreachable pref 11
+  &num; ip rule add tos 0x12 from 10.0.0.12 lookup t3
+  &num; ip rule add from 10.0.0.0/24 fwmark 12 prohibit pref 2
+</verb></tscreen>
+Con il primo comando abbiamo inserito una regola in posizione 11 che fa in modo
+che tutti i pacchetti ip provenienti dal computer 10.0.0.11 vengano respinti con
+un un bel ``network unreachable''.<p>
+La seconda regola prende invece tutti i pacchetti provenienti da 10.0.0.12 con 
+un tos di valore 0x12 (maximize throughput e maximize reliability) e fa effettuare
+il lookup della tabella chiamata t3. In questo caso, non &egrave; stata data una posizione
+specifica con l'istruzione <tt/pref/. Attenzione che comandi successivi, a meno che 
+non venga esplicitamente indicata una posizione, aggiungono sempre regole con precedenza
+maggiore rispetto tutte le altre regole. Questa seconda regola verrebbe quindi inserita
+in posizione 10. Infine, l'ultima regola viene inserita in posizione 2 e fa in modo che
+vengano proibiti tutti i pacchetti provenienti dalla rete 10.0.0.0/24 e marcati dal 
+firewall con un valore di 12.<p>
+Attenzione per&ograve; che la prima regola, con priorit&agrave; 0 che effettua il lookup
+nella tabella local non pu&ograve; essere rimossa.<p>
+
+<sect>Trouble shooting -- individuare gli errori<p>
+Finch&egrave; le regole sono poche o comunque le tabelle di routing sono abbastanza
+semplici capita di rado di fare errori. Quando invece le regole iniziano a moltiplicarsi
+ed esistono edelle entry ambigue nelle varie tabelle di routing,
+&egrave; indispensabile essere in grado di effettuare dei controlli e delle
+verifiche.<p>
+Per fare questo, &egrave; possibile utilizzare il comando ``ip route get'', che
+ci permette di sapere da che parte verrebbe instradato un pacchetto con determinate 
+caratteristiche. Per esempio
+<tscreen><verb>
+  &num; ip route get 192.168.12.14 from 1.2.3.4 iif eth-smac 
+</verb></tscreen>
+ci direbbe da che parte verrebbe mandato un pacchettino destinato a
+192.168.12.14 proveniente da 1.2.3.4 ed entrato nel nostro router tramite
+interfaccia eth-smac.<p>
+Attenzione che se le informazioni fornite sono incoerenti, ip vi butter&agrave;
+fuori con un errore del tipo ``invalid argument''.<p>
+Vi posso garantire che ip route get pu&ograve; farvi risparmiare parecchio 
+tempo... <p>
+
+<sect>Da arp a ip<p>
+ Oltre ai comandi ifconfig e route, il comando <tt/ip/ pu&ograve; rimpiazzare
+ alcuni altri comandi. In particolare, al posto di ``arp'' pu&ograve; essere
+ utilizzata la famiglia di comandi ``ip neigh'' per la gestione dell'Address
+ Resolution protocol.<p>
+ Per esempio, il comando ``ip neigh show'' mostra gli host dei quali è conosciuto
+ l&apos;indirizzo hardware, e corrisponde quindi al comando ``arp -a''. E'
+ possibile invece aggiungere host nella cache usando il comando ``ip
+ neigh add'' come mostrato qua sotto:
+
+<p>
+<tscreen><verb>
+&num; ip neigh add 192.168.200.5 lladdr 00:5c:4a:3d:2e:5f nud permanent dev eth0
+</verb></tscreen>
+<p>
+In questo caso abbiamo aggiunto un host con indirizzo ip 192.168.200.5
+ e indirizzo hardware 00:5c:4a:3d:2e:5f. ``nud'' specifica invece in
+ che modo il record deve essere creato nella cache, e ``permanent''
+ specifica che non deve mai essere rimosso. Altre possibilità sono
+ noarp, stale oppure reachable, che comunque vengono utilizzati soltanto
+ in casi particolari. Il comando equivalente sarebbe stato in questo
+ caso ``arp -s 192.168.200.5 00:5c:4a:3d:2e:5f''. E&apos; anche possibile
+ rimuovere o cambiare dei record nella cache usando il comando ``ip neigh del'' ed ``ip neigh change'' come mostrato qua sotto:
+
+<p>
+<tscreen><verb>
+&num; ip neigh change 192.168.200.5 nud noarp dev eth0
+</verb></tscreen>
+<p>
+Con questo primo comando abbiamo cambiato lo stato del record
+ relativo all&apos;host 192.168.200.5 da permanente a ``noarp'', che indica
+ al kernel la validità del record fino alla sua scadenza senza bisogno
+ di riconvalida. Notate che a questo punto questo record non verrebbe
+ mostrato dando un altro ``ip neigh show''. Per vederlo, bisognerebbe
+ specificare esplicitamente che si desidera vedere tutti i record
+ settati a noarp, con il comando ``ip neigh show nud noarp''. 
+
+<tscreen><verb>
+&num; ip neigh del 192.168.200.5 dev eth0
+</verb></tscreen>
+<p>
+Con questa riga abbiamo invece rimosso il record relativo allo
+ stesso host. Notate anche che il più delle volte è necessario specificare
+ esplicitamente su che interfaccia si ha intenzione di lavorare.
+
+<sect>Altre funzioni interessanti<p>
+Se vi vorrete scrivere degli script da voi o per modificare una
+configurazione a runtime senza troppa fatica e senza bisogno di riavviare, potrebbe
+essere comodo usare il comando ``flush'', disponibile nella maggior parte
+dei casi.<p>
+Per esempio, per eliminare tutti gli indirizzi ip assegnati ad una scheda di rete,
+si potrebbe usare senza troppo sforzo un comando del tipo 
+<tscreen><verb>
+&num; ip addr flush dev eth0
+</verb></tscreen>
+oppure, per ripulire una tabella di routing
+<tscreen><verb>
+&num; ip route flush table main
+&num; ip route flush table smacchina
+</verb></tscreen>
+Naturalmente, &egrave; anche possibile eliminare singolarmente sia gli 
+indirizzi ip assegnati alle schede di rete, sia le entry nelle tabelle di routing,
+ripetendo esattamente quello che si &egrave; scritto col comando add, utilizzando
+invece l'opzione del, per esempio con
+<tscreen><verb>
+&num; ip addr del 10.30.0.0/24 dev eth0
+</verb></tscreen>
+Come con ifconfig, &egrave; anche possibile visualizzare delle statistiche 
+utilizzando l'opzione ``-s'', ad esempio 
+<tscreen><verb>
+&num; ip -s link show
+</verb></tscreen>
+vi mostrerebbe le statistiche sui dispositivi hardware installati.<p>
+Altre funzioni interessanti non discusse su questo documento sono:
+<itemize>
+  <item>la gestione dei tunnel
+  <item>il proxy arp (non proprio relativo a ip, ma comunque interessante)
+  <item>la gestione degli indirizzi di multicast
+</itemize>
+
+<sect>Conclusione<p>
+Abbiamo visto come si può configurare e gestire una scheda di
+ rete in linux utilizzando solamente il comando ip. ip per&ograve;
+ non è ancora il sistema utilizzato dalla maggior parte delle distribuzioni,
+ e spesso &egrave; necessario scriversi da s&eacute; gli script di
+ configurazione necessari da inserire nel processo di init, anche
+ se in genere ip convive abbastanza bene con tutti i suoi fratelli
+ pi&ugrave; standard. ip &egrave; in grado di fare molte pi&ugrave;
+ cose rispetto quelle di cui vi ho parlato, delle quali magari
+ vi parler&ograve; in una qualche prossima versione di questo 
+ documento. Intanto, potrete avere informazioni addizionali consultando
+ l'ip command reference (ip-cref.ps) fornita in formato postscript con tutte le
+ versioni di ip oppure chiedere aiuto utilizzando ``ip help'' o ``ip
+ famiglia help''.<p>
+ C&apos;è anche disponibile una piccola howto che va completandosi
+ scaricabile da <url url="http://www.ds9a.nl/2.4Routing" name="">, 
+ che tratta specificatamente le funzionalit&agrave; di routing
+ avanzate. 
+
+</article>
